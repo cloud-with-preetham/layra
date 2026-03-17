@@ -1,7 +1,6 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-
-const users = []; // temporary in-memory storage
+const prisma = require("../config/prisma");
 
 exports.registerUser = async (req, res) => {
   try {
@@ -9,18 +8,19 @@ exports.registerUser = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = {
-      id: Date.now(),
-      email,
-      password: hashedPassword,
-    };
-
-    users.push(user);
+    const user = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+      },
+    });
 
     res.status(201).json({
       message: "User registered successfully",
+      userId: user.id,
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -29,7 +29,9 @@ exports.loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = users.find((u) => u.email === email);
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -50,6 +52,7 @@ exports.loginUser = async (req, res) => {
       token,
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: error.message });
   }
 };
